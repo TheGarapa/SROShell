@@ -1,0 +1,86 @@
+#!/bin/bash
+# SROShell - Programa para rastrear objetos correios.
+# Criado por: Joseildo Cruz
+# Data: 26/07/2017
+# E-mail: joseildocruz@gmail.com
+# ______________________________________________________________________________________
+#
+# Versão: 20170726 - Versão inicial.
+#	  Como quase todos os programas, esse não é diferente, poderá apresentar alguns
+#	  erros no resultado final. Não fiz o teste com código do SEDEX - usei o PAC :-(
+#	  foi mais barato :-). 
+# ______________________________________________________________________________________
+#
+# ================================== Início do Script ==================================
+
+SROC="/tmp/srorast.xxxxxx"
+ValidSRO='[A-Z]{2}[0-9]{9}[A-Z]{2}'
+
+# Mensagem de ajuda.
+Mensagem_Ajuda="
+	\033[32;1mSROShell - Rastreamento de objetos correios.\033[m
+		
+	\033[32;1mDigite o códido de rastreamento usando o seguinte exemplo:\033[m
+		
+		\033[33;1mLetra\033[m + \033[31;1mNúmero\033[m + \033[34;1mLetra\033[m
+		 \033[33;1mAA\033[m   \033[31;1m123456789\033[m   \033[34;1mAA\033[m
+
+	\033[32;1mSe houver mais de um produto a ser rastreado, faça um de cada vez.\033[m
+"
+
+SRO_Rastreamento(){
+# Pega o código de rastreamento passado pelo usuário.
+echo -e "\033[32;1mSRO - Digite o código de Restreamento:\033[m" 
+read codigo_sro
+
+# Verifica se o usuário digitou o bendito código.
+if [ -z $codigo_sro ]; then
+	echo -e "\033[31;1mVocê não digitou o código de rastreamento.\033[m"
+ 	exit 1
+else
+# Verifica se o código obedece os valores de duas letras, nove número e duas letras.
+# Se sim, realiza o rastreamento.
+	if [[ $codigo_sro =~ $ValidSRO ]]; then
+		lynx -source http://www.websro.com.br/correios.php?P_COD_UNI=$codigo_sro | tr -d "\t" | egrep "<td|<h[1-2]" | sed 's/<[^>]*>//g' > $SROC 
+	else
+# Se o código for inválido exibe uma mensagem de erro.
+		clear
+		echo -e "\033[31;1mOPS!!! Código Inválido.\033[m"
+		echo -e "\033[31;1m***********************\033[m"
+		echo -e "$Mensagem_Ajuda"
+	exit 1
+	fi
+fi
+}
+
+SRO_Resultado(){
+# Obtém o resultado do rastreamento armazenado no arquivo temporário.
+__Objt=$(cat $SROC | grep -i "^OBJETO:" | cut -d':' -f2 | tr -d ' ' )
+__Objt_Enc=$(cat $SROC | grep "^Objeto")
+__Local_Ent=$(cat $SROC | grep "^Local:" | grep "^Local" | awk '{print $2,$3}')
+__Data_Enc=$(cat $SROC | egrep "[0-9]{2}/[0-9]{2}/[0-9]{4}" | awk '{print $1}')
+__Hora_Enc=$(cat $SROC | egrep "[0-9]{2}:[0-9]{2}" | awk '{print $2}')
+__Origem=$(cat $SROC | egrep "Destino:" | sed 's/Destino:.*//g')
+__Destino=$(cat $SROC | egrep "Destino:" | cut -d':' -f3)
+
+# Organizando o resultado na tela.
+ResultadoSRO="
+
+	\033[37;1mSROShell - Rastreamento de Objetos - WEBSRO Correios\033[m
+	\033[37;1m____________________________________________________\033[37;1m
+			             \033[32;1mOBJETO:\033[m \033[33;1m$__Objt\033[m
+	\033[32;1mDATA:\033[m \033[33;1m$__Data_Enc\033[m
+	\033[32;1mHORA:\033[m \033[33;1m$__Hora_Enc\033[m
+	\033[32;1m$__Objt_Enc\033[m	  \033[33;1m$__Local_Ent\033[m
+	\033[32;1m$__Origem\033[m
+	\033[32;1mDestino:\033[m \033[33;1m$__Destino\033[m
+	\033[37;1m____________________________________________________\033[m 
+"
+
+echo -e "$ResultadoSRO"
+}
+
+# Chama a função e exibe os resultados.
+SRO_Rastreamento
+SRO_Resultado
+# ==================================== Fim do Script ===================================
