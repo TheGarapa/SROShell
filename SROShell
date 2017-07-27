@@ -38,7 +38,7 @@ if [ -z $codigo_sro ]; then
 	echo -e "\033[31;1mVocê não digitou o código de rastreamento.\033[m"
  	exit 1
 else
-# Verifica se o código obedece os valores de duas letras, nove número e duas letras.
+# Verifica se o código obedece os valores de duas letras, nove números e duas letras.
 # Se sim, realiza o rastreamento.
 	if [[ $codigo_sro =~ $ValidSRO ]]; then
 		lynx -source http://www.websro.com.br/correios.php?P_COD_UNI=$codigo_sro | tr -d "\t" | egrep "<td|<h[1-2]" | sed 's/<[^>]*>//g' > $SROC 
