@@ -1,17 +1,19 @@
 #!/bin/bash
 # SROShell - Programa para rastrear objetos correios.
-# Criado por: Joseildo Cruz
-# Data: 26/07/2017
-# E-mail: joseildocruz@gmail.com
-# ______________________________________________________________________________________
+# Autor: Joseildo Cruz	<joseildocruz@gmail.com>
+# _________________________________________________________________________________________
 #
 # Versão: 20170726 - Versão inicial.
-#	  Como quase todos os programas, esse não é diferente, poderá apresentar alguns
-#	  erros no resultado final. Não fiz o teste com código do SEDEX - usei o PAC :-(
-#	  foi mais barato :-). 
-# ______________________________________________________________________________________
+#	    Como quase todos os programas, esse não é diferente, poderá apresentar alguns
+#	    erros no resultado final. Não fiz o teste com código do SEDEX - usei o PAC :-(
+#	    foi mais barato :-). 
 #
-# ================================== Início do Script ==================================
+# Versão: 20170728 - Harley Sousa <harleysousa@protonmail.com>	  
+#	  - Corrigido bug.
+#	  - Adicionado opção de "novo rastreamento"	(O José esqueceu de colocar)
+# _________________________________________________________________________________________
+#
+# ==================================== Início do Script ===================================
 
 SROC="/tmp/srorast.xxxxxx"
 ValidSRO='[A-Z]{2}[0-9]{9}[A-Z]{2}'
@@ -22,8 +24,8 @@ Mensagem_Ajuda="
 		
 	\033[32;1mDigite o códido de rastreamento usando o seguinte exemplo:\033[m
 		
-		\033[33;1mLetra\033[m + \033[31;1mNúmero\033[m + \033[34;1mLetra\033[m
-		 \033[33;1mAA\033[m   \033[31;1m123456789\033[m   \033[34;1mAA\033[m
+	\033[33;1mLetra\033[m + \033[31;1mNúmero\033[m + \033[34;1mLetra\033[m
+	 \033[33;1mAA\033[m   \033[31;1m123456789\033[m   \033[34;1mAA\033[m
 
 	\033[32;1mSe houver mais de um produto a ser rastreado, faça um de cada vez.\033[m
 "
@@ -33,28 +35,34 @@ SRO_Rastreamento(){
 echo -e "\033[32;1mSRO - Digite o código de Restreamento:\033[m" 
 read codigo_sro
 
-# Verifica se o usuário digitou o bendito código.
-if [ -z $codigo_sro ]; then
+# Verifica se o usuário digitou o código.
+while [ -z $codigo_sro ]; do
+	sleep 1
+	echo -e "\033[32;1mPor favor, digite o código de rastreamento:\033[m"
+ 	read codigo_sro
 	echo -e "\033[31;1mVocê não digitou o código de rastreamento.\033[m"
- 	exit 1
-else
+	exit 1  # Não digitou, então tchau 
+done
+
 # Verifica se o código obedece os valores de duas letras, nove números e duas letras.
 # Se sim, realiza o rastreamento.
-	if [[ $codigo_sro =~ $ValidSRO ]]; then
-		lynx -source http://www.websro.com.br/correios.php?P_COD_UNI=$codigo_sro | tr -d "\t" | egrep "<td|<h[1-2]" | sed 's/<[^>]*>//g' > $SROC 
-	else
+if [[ $codigo_sro =~ $ValidSRO ]]; then
+	lynx -source http://www.websro.com.br/correios.php?P_COD_UNI=$codigo_sro | tr -d "\t" | egrep "<td|<h[1-2]" | sed 's/<[^>]*>//g' > $SROC 
+else
 # Se o código for inválido exibe uma mensagem de erro.
-		clear
-		echo -e "\033[31;1mOPS!!! Código Inválido.\033[m"
-		echo -e "\033[31;1m***********************\033[m"
-		echo -e "$Mensagem_Ajuda"
-	exit 1
-	fi
+	clear
+	echo -e "\033[31;1mOPS!!! Código Inválido.\033[m"
+	echo -e "\033[31;1m***********************\033[m"
+	echo -e "$Mensagem_Ajuda"
+	
+	# Chama a função novo rastreamento. Se o usuário não desejar realizar
+	Novo_Rastreamento
 fi
+
 }
 
 SRO_Resultado(){
-# Obtém o resultado do rastreamento armazenado no arquivo temporário.
+# Obtém os resultados do rastreamento armazenado no arquivo temporário.
 __Objt=$(cat $SROC | grep -i "^OBJETO:" | cut -d':' -f2 | tr -d ' ' )
 __Objt_Enc=$(cat $SROC | grep "^Objeto")
 __Local_Ent=$(cat $SROC | grep "^Local:" | grep "^Local" | awk '{print $2,$3}')
@@ -77,7 +85,23 @@ ResultadoSRO="
 	\033[37;1m____________________________________________________\033[m 
 "
 
+# Mostra o resultado na saída padrão.
 echo -e "$ResultadoSRO"
+
+# Após mostrar o resultado, pergunta se o usuário deseja fazer um novo
+# rastreamento.
+Novo_Rastreamento
+}
+
+Novo_Rastreamento(){
+echo -e "\033[33;1mDeseja pesquisar mais algum pedido [S/N]?\033[m"
+read resposta
+
+case $resposta in
+	s|S) SRO_Rastreamento ; SRO_Resultado ;;
+	n|N) exit 0 ;;
+	*) exit 1 ;; # Se o usuário der um ENTER sai do mesmo jeito
+esac
 }
 
 # Chama a função e exibe os resultados.
